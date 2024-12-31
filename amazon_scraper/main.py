@@ -1,15 +1,11 @@
-import requests
-from bs4 import BeautifulSoup
-
-URL = "https://www.amazon.in/Razer-BlackShark-V2-Headset-RZ04-03240100-R3M1/dp/B08WBJHVYV"
+from scraper import scrape_amazon, parse_url
 
 
-content = requests.get(URL)
-soup = BeautifulSoup(content.text, features='html.parser')
+if __name__ == '__main__':
+    URL = '''
+    https://www.amazon.in/MSI-GeForce-Ventus-128-bit-Graphic/dp/B0C7W8GZMJ?dib=eyJ2IjoiMSJ9.VsRvMn0rzqVTPaeM1cWo332WcObX2BiFBJ_C_RodmqFcMcWvyc-SvyMeDJqAcDXdAIELk5YEg2XHb-Nq5Onk4cr7xRoR8P2g1-FoApNvokAaiidEQA1oYyThUm7GDQJ39opzqgi95NebcFhg6uRH8g-kqjQZ7PUt1f8rRqZJ2Ses9ZTyDbzD_eQul6CTgfh1IyI_NgLCEmCGogj3ycI0dR776f1D_BHz2KNv0wd2Rpo.DcSOxvnmWNzuDziIr7U8z_BcjfML8fITJuiOKFTSuOw&dib_tag=se&keywords=graphic%2Bcards&qid=1735564436&sr=8-8&th=1
+    '''
+    parsed_url = parse_url(URL)
+    print(parsed_url)
 
-review_sec = soup.find(attrs={'id': 'cm-cr-dp-review-list'})
-
-reviews = []
-
-for div in review_sec.find_all('div', class_='reviewText'):
-    reviews.append(div.span.text)
+    # scrape_amazon(URL, parse=True)
