@@ -16,7 +16,6 @@ class ReviewsDB:
         if not os.path.isdir(self.DB_FOLDER):
             os.mkdir(self.DB_FOLDER)
 
-
     def connect(self) -> bool:
         try:
             self.connection = sqlite3.connect(os.path.join(self.DB_FOLDER, self.DB_NAME))
@@ -29,7 +28,6 @@ class ReviewsDB:
             print(f'Error Connecting to Database - {e}')
             self.__close()
             return False
-
 
     def __initialize_table(self) -> None:
         try:
@@ -90,8 +88,8 @@ class ReviewsDB:
             except sqlite3.Error as e:
                 print(f"Error in checking ASIN - {e}")
 
-
-    def __prepare_review(self, result) -> dict[str: str]:
+    @staticmethod
+    def __prepare_review(result) -> dict[str: str]:
         asin, created_date, review_str = result
 
         reviews = json.loads(review_str)
@@ -110,7 +108,7 @@ class ReviewsDB:
 if __name__ == '__main__':
     db = ReviewsDB()
     db.connect()
-    asin = '12334abc'
+    asin = '1234abc'
     if db.check_asin(asin):
         results = db.get_review(asin)
         print(results)

@@ -1,32 +1,71 @@
+import re
 from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
 from user_agent import generate_user_agent
 
-def scrape_amazon(amazon_product_url: str, parse=False) -> list[str]:
-    if parse:
-        amazon_product_url = parse_url(amazon_product_url)
+from db import ReviewsDB
 
-    headers: dict[str, str] = {
-        'User-Agent': generate_user_agent(),
-        "accept-language": "en-GB,en;q=0.9",
-    }
+class AmazonScraper:
+    def __init__(self, db: ReviewsDB):
+        self.db = db
+        self.db.connect()
 
-    content: requests.Response = requests.get(amazon_product_url, headers=headers)
+    def scrape(self, amazon_url: str) -> list[str]:
+        url_dict = self.__parse_url(amazon_url)
+        product_reviews: list[str] = []
 
-    soup: BeautifulSoup = BeautifulSoup(content.text, features='html.parser')
+        if self.db.check_asin(url_dict['asin']):
+            results = self.db.get_review(url_dict['asin'])
+            return results['Reviews']
 
-    review_sec = soup.find(attrs={'id': 'cm-cr-dp-review-list'})
+        headers: dict[str, str] = {
+            'User-Agent': generate_user_agent(),
+            "accept-language": "en-GB,en;q=0.9",
+        }
 
-    product_reviews = []
+        content: requests.Response = requests.get(url_dict['parsed_url'], headers=headers)
 
-    for div in review_sec.find_all('div', class_='reviewText'):
-        product_reviews.append(div.span.text)
+        soup: BeautifulSoup = BeautifulSoup(content.text, features='html.parser')
 
-    return product_reviews
+        review_sec = soup.find(attrs={'id': 'cm-cr-dp-review-list'})
 
-def parse_url(initial_url: str) -> str:
-    parsed = urlparse(initial_url)
+        for div in review_sec.find_all('div', class_='reviewText'):
+            product_reviews.append(div.span.text)
 
-    return parsed.scheme + "://" + parsed.netloc + parsed.path
+        self.db.insert_review(url_dict['asin'], product_reviews)
+
+        return product_reviews
+
+
+    @staticmethod
+    def __parse_url(initial_url: str) -> dict[str, str]:
+        parsed = urlparse(initial_url)
+
+        if not 'amazon' in parsed.netloc.split('.'):
+            raise ValueError('Invalid URL. Please input Amazon URL')
+
+        asin_regex = r'\b[A-Z0-9]{10}\b'
+        matches = re.findall(asin_regex, parsed.path)
+
+        if len(matches) == 0:
+            raise ValueError('ASIN not found in URL. Please input valid Amazon URL')
+
+        url_dict = {
+            'parsed_url': parsed.scheme + "://" + parsed.netloc + parsed.path,
+            'asin': matches[0]
+        }
+
+        return url_dict
+
+
+# for debugging purpose only
+if __name__ == '__main__':
+    URL = '''
+        https://www.amazon.in/MSI-GeForce-Ventus-128-bit-Graphic/dp/B0C7W8GZMJ?dib=eyJ2IjoiMSJ9.VsRvMn0rzqVTPaeM1cWo332WcObX2BiFBJ_C_RodmqFcMcWvyc-SvyMeDJqAcDXdAIELk5YEg2XHb-Nq5Onk4cr7xRoR8P2g1-FoApNvokAaiidEQA1oYyThUm7GDQJ39opzqgi95NebcFhg6uRH8g-kqjQZ7PUt1f8rRqZJ2Ses9ZTyDbzD_eQul6CTgfh1IyI_NgLCEmCGogj3ycI0dR776f1D_BHz2KNv0wd2Rpo.DcSOxvnmWNzuDziIr7U8z_BcjfML8fITJuiOKFTSuOw&dib_tag=se&keywords=graphic%2Bcards&qid=1735564436&sr=8-8&th=1
+    '''
+
+    scraper = AmazonScraper(ReviewsDB())
+    reviews = scraper.scrape(URL)
+    print(reviews)
