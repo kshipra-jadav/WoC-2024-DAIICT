@@ -5,8 +5,7 @@ import pandas as pd
 from nltk.tokenize import ToktokTokenizer
 from nltk.corpus import stopwords as stp
 from nltk.stem import WordNetLemmatizer
-from sklearn.feature_extraction.text import TfidfVectorizer
-
+from sentence_transformers import SentenceTransformer
 
 def text_normalize(samples: pd.Series) -> pd.Series:
     samples = samples.apply(lambda x: x.lower()) # convert all samples to lower case
@@ -36,29 +35,26 @@ def text_lemmatize(samples: pd.Series) -> pd.Series:
 
     return samples
 
-def tfidf(samples: pd.Series) -> pd.Series:
-    corpus = set()
-    tfidf_vec = TfidfVectorizer()
+def create_embeddings(samples: pd.Series) -> pd.Series:
+    model = SentenceTransformer('all-MiniLM-L6-v2')  # Had no choice. Sorry. TFIDF doesn't work on THIS big of a dataset.
 
-    for sample in samples:
-            for word in sample:
-                corpus.add(word)
-    tfidf_vec.fit(corpus)
+    embeddings = model.encode(samples.tolist(), batch_size=32, show_progress_bar=True)
 
-    print(tfidf_vec.transform(samples[0]).toarray())
+    return pd.Series(list(embeddings))
 
-    # return tfidf_samples
 
 
 def main():
     df = pd.read_csv('fakeReviewData.csv')
 
-    df['text_'] = text_normalize(df['text_'])
-    df['text_'] = remove_stopwords(df['text_'])
-    df['text_'] = text_lemmatize(df['text_'])
-    df['text_tokenized'] = text_tokenize(df['text_'])
+    df['text_processed'] = text_normalize(df['text_'])
+    df['text_processed'] = remove_stopwords(df['text_processed'])
+    df['text_processed'] = text_lemmatize(df['text_processed'])
+    df['text_tokenized'] = text_tokenize(df['text_processed'])
 
-    print(df['text_'].head(1))
+    df['text_embeddings'] = create_embeddings(df['text_processed'])
+
+    print(df.head(2))
 
 
 if __name__ == '__main__':
